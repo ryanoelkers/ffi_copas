@@ -5,6 +5,8 @@ from libraries.utils import Utils
 import psycopg2
 import pandas as pd
 import os
+from astroquery.mast import Catalogs
+from astropy.coordinates import SkyCoord
 
 
 class DBaccess:
@@ -42,6 +44,7 @@ class DBaccess:
 
         :return A string with the SQL
         """
+
         # read in the appropriate sql file
         sql = open(path, 'r')
         sql_cmd = sql.read()
@@ -66,13 +69,13 @@ class DBaccess:
         """
         # set up the connection object based on whether you are on tessdev
         if stassunlab != 'tessdev':
-            conn = psycopg2.connect(host="129.59.141.168",
+            conn = psycopg2.connect(host="10.2.188.37", # host="129.59.141.168",
                                     port=5432,
                                     database="tessdb",
                                     user="tessuser",
                                     password="4-users")
         if stassunlab == 'tessdev':
-            conn = psycopg2.connect(host="129.59.141.168",
+            conn = psycopg2.connect(host="10.2.188.37", # host="129.59.141.168",
                                     port=5432,
                                     database="tessdb",
                                     user="tessuser",
@@ -108,13 +111,13 @@ class DBaccess:
         """
         # set up the connection object based on whether you are on tessdev
         if stassunlab != 'tessdev':
-            conn = psycopg2.connect(host="129.59.141.168",
+            conn = psycopg2.connect(host="10.2.188.37",  #129.59.141.168",
                                     port=5432,
                                     database="tessdb",
                                     user="tessuser",
                                     password="4-users")
         if stassunlab == 'tessdev':
-            conn = psycopg2.connect(host="129.59.141.168",
+            conn = psycopg2.connect(host="10.2.188.37",
                                     port=5432,
                                     database="tessdb",
                                     user="tessuser",
@@ -130,6 +133,7 @@ class DBaccess:
 
         if os.path.isfile(out_path + file_name) == 0:
             Utils.log("Querying TICv7...", "info", Configuration.LOG_SCREEN)
+
             # generate the data frame with the queried results
             df = pd.read_sql_query(sql_cmd, conn)
 
@@ -148,3 +152,45 @@ class DBaccess:
 
         return df
 
+    @staticmethod
+    def query_mast(cen_ra, cen_dec, region_size, out_path, file_name):
+        """ This function will query the tic on mast instaed of the local tessdev databsae
+
+        :parameter cen_ra - The ra center region
+        :parameter cen_dec - The dec center region
+        :parameter region_size - The region size of the query
+        :parameter out_path - The directory to dump the data file
+        :parameter file_name - The desired filename
+
+        :return df - a data frame with the query results
+        """
+
+        if os.path.isfile(out_path + file_name) == 1:
+            Utils.log("Legacy file found, not querying TIC on MAST", "info", Configuration.LOG_SCREEN)
+            # read in from a file
+            df = pd.read_csv(out_path + file_name, index_col=0)
+            Utils.log("CSV read complete.", "info", Configuration.LOG_SCREEN)
+
+        if os.path.isfile(out_path + file_name) == 0:
+            Utils.log("Querying TIC on MAST...", "info", Configuration.LOG_SCREEN)
+
+            # convert the coordinates to degrees
+            ccd_region = SkyCoord(cen_ra, cen_dec, unit=('deg', 'deg'))
+
+            # astroquery the region of the ccd / camera
+            df = Catalogs.query_region(ccd_region, radius=region_size, catalog='Tic')[
+                'ID', 'Tmag', 'ra', 'dec', 'dstArcSec', 'TWOMASS'].to_pandas()# .dropna(subset='[TWOMASS]')
+
+            df = df.rename(columns={'ID': 'TICID'})
+            df = df.rename(columns={'dstArcSec': 'rdist'})
+            df = df.rename(columns={'Tmag': 'tessmag'})
+            df = df.drop(columns='TWOMASS')
+
+            Utils.log("Query complete, dumping to .csv file " + out_path + file_name, "info", Configuration.LOG_SCREEN)
+
+            # dump the file to csv
+            df.to_csv(out_path + file_name)
+
+            Utils.log("Dump complete.", "info", Configuration.LOG_SCREEN)
+
+        return df

@@ -4,19 +4,22 @@ necessary to update for a reduction."""
 
 class Configuration:
     # Debugging loops
-    STAR_CHECK = -1  # this is the number of stars to run photometry on the frame SET TO -1 UNLESS DEBUGGING
+    STAR_CHECK = 25000  # this is the number of stars to run photometry on the frame SET TO -1 UNLESS DEBUGGING
 
     # Computer for reduction
-    MACHINE = 'tessdev'
-    BULK_QUERY = 1000
+    MACHINE = 'barristan'
+    SYSTEM = 'windows'
+    BULK_QUERY = 25000  # 1000 for tessdb probably closer to 25,000 for MAST
+    WHERE_TO_QUERY = 'MAST'
+    SPECIAL_LIST = 'copas'
 
     # Sector, Camera, CCD information
-    SECTOR = 'sector01'
-    SECTOR_NUMBER = '0001'
+    SECTOR = 'sector70'
+    SECTOR_NUMBER = '0070'
     CAMERA = '1'
-    CCD = '1'
-    SECT = 's0001'
-    SECT_NUM = '0120'
+    CCD = '3'
+    SECT = 's0070'  # 's0011' # 's0010'
+    SECT_NUM = '0265'  # '0143'  # '0140'
 
     # logging information, i.e. print to the screen?
     LOG_SCREEN = 'Y'
@@ -34,8 +37,8 @@ class Configuration:
     PHOTOMETRY_SKIP = 'Y'
     MAKE_RAW_LIGHTCURVE_SKIP = 'N'
     MAKE_DETREND_LIGHTCURVE_SKIP = 'Y'
-    MAKE_FILTERGRAPH_PORTAL_SKIP = 'N'
-    MAST_RELEASE_SKIP = 'N'
+    MAKE_FILTERGRAPH_PORTAL_SKIP = 'Y'
+    MAST_RELEASE_SKIP = 'Y'
 
     # what type of master frame would you like (single or multi)
     MASTER_TYPE = 'single'
@@ -48,7 +51,6 @@ class Configuration:
 
     # update sky subtraction specific information
     PIX = 32
-    BXS = 128
 
     # update photometry specific information
     APER_SIZE = 3.5
@@ -78,31 +80,32 @@ class Configuration:
     RMS_UP_LIMIT = 0.02  # the upper limit on precision to use for the kernel stars
 
     # output paths for logging, temporary files, figures etc
-    WORKING_DIRECTORY = '/home/oelkerrj/Development/FFI/'
-    DATA_DIRECTORY = '/media/oelkerrj/Yavin/TESS/data/'
-    ANALYSIS_DIRECTORY = WORKING_DIRECTORY + 'analysis/'
-    LEGACY_DIRECTORY = WORKING_DIRECTORY + 'legacy/'
-    LIBRARY_DIRECTORY = WORKING_DIRECTORY + 'libraries/'
-    LOG_DIRECTORY = WORKING_DIRECTORY + 'logs/'
-    CALIBRATION_DIRECTORY = WORKING_DIRECTORY + 'calibration/'
-    QUERIES_DIRECTORY = WORKING_DIRECTORY + 'queries/'
+    WORKING_DIRECTORY = 'C:\\Users\\barristan\\Development\\ffi_dia\\'
+    DATA_DIRECTORY = 'I:\\TESS\\'
+    ANALYSIS_DIRECTORY = WORKING_DIRECTORY + 'analysis\\'
+    LEGACY_DIRECTORY = WORKING_DIRECTORY + 'legacy\\'
+    LIBRARY_DIRECTORY = WORKING_DIRECTORY + 'libraries\\'
+    LOG_DIRECTORY = WORKING_DIRECTORY + 'logs\\'
+    CALIBRATION_DIRECTORY = WORKING_DIRECTORY + 'calibration\\'
+    QUERIES_DIRECTORY = WORKING_DIRECTORY + 'queries\\'
 
     # output directories for data products
-    CLEAN_DIRECTORY = DATA_DIRECTORY + SECTOR + '/clean/'
-    RAW_DIRECTORY = DATA_DIRECTORY + SECTOR + '/raw/'
-    DIFFERENCED_DIRECTORY = DATA_DIRECTORY + SECTOR + '/diff/'
-    MASTER_DIRECTORY = DATA_DIRECTORY + SECTOR + '/master/'
-    LC_DIRECTORY = DATA_DIRECTORY + SECTOR + '/lc/'
-    RAW_LC_DIRECTORY = LC_DIRECTORY + 'raw/'
-    DETREND_LC_DIRECTORY = LC_DIRECTORY + 'detrend/'
-    RELEASE_DIRECTORY = DATA_DIRECTORY + 'release/'
-    RELEASE_SECTOR_DIRECTORY = RELEASE_DIRECTORY + SECTOR + '/'
-    MAST_DIRECTORY = RELEASE_SECTOR_DIRECTORY + 'mast/'
-    MAST_SECTOR_DIRECTORY = RELEASE_SECTOR_DIRECTORY + 's' + SECTOR_NUMBER + '/'
-    PLOTS_DIRECTORY = DATA_DIRECTORY + 'plots/'
-    PLOTS_SECTOR_DIRECTORY = PLOTS_DIRECTORY + SECTOR + '/'
-    VARSTATS_DIRECTORY = DATA_DIRECTORY + 'varstats/'
-    VARSTATS_SECTOR_DIRECTORY = VARSTATS_DIRECTORY + SECTOR + '/'
+    CLEAN_DIRECTORY = DATA_DIRECTORY + SECTOR + '\\clean\\'
+    RAW_DIRECTORY = DATA_DIRECTORY + SECTOR + '\\raw\\'
+    DIFFERENCED_DIRECTORY = DATA_DIRECTORY + SECTOR + '\\diff\\'
+    MASTER_DIRECTORY = DATA_DIRECTORY + SECTOR + '\\master\\'
+    LC_DIRECTORY = DATA_DIRECTORY + SECTOR + '\\lc\\'
+    RAW_LC_DIRECTORY = LC_DIRECTORY + 'raw\\'
+    RAW_LC_SPEC_DIRECTORY = RAW_LC_DIRECTORY + SPECIAL_LIST + '\\'
+    DETREND_LC_DIRECTORY = LC_DIRECTORY + 'detrend\\'
+    RELEASE_DIRECTORY = DATA_DIRECTORY + 'release\\'
+    RELEASE_SECTOR_DIRECTORY = RELEASE_DIRECTORY + SECTOR + '\\'
+    MAST_DIRECTORY = RELEASE_SECTOR_DIRECTORY + 'mast\\'
+    MAST_SECTOR_DIRECTORY = RELEASE_SECTOR_DIRECTORY + 's' + SECTOR_NUMBER + '\\'
+    PLOTS_DIRECTORY = DATA_DIRECTORY + 'plots\\'
+    PLOTS_SECTOR_DIRECTORY = PLOTS_DIRECTORY + SECTOR + '\\'
+    VARSTATS_DIRECTORY = DATA_DIRECTORY + 'varstats\\'
+    VARSTATS_SECTOR_DIRECTORY = VARSTATS_DIRECTORY + SECTOR + '\\'
 
     # directories for coding
     CODE_DIFFERENCE_INIT_DIRECOTRY = DATA_DIRECTORY + 'difference/'
@@ -116,7 +119,7 @@ class Configuration:
                    DETREND_LC_DIRECTORY, MASTER_DIRECTORY, CALIBRATION_DIRECTORY, CODE_DIFFERENCE_INIT_DIRECOTRY,
                    CODE_DIFFERENCE_INIT_SECT_DIRECTORY, CODE_DIFFERENCE_CAM_DIRECTORY, CODE_DIFFERENCE_DIRECTORY,
                    RELEASE_DIRECTORY, RELEASE_SECTOR_DIRECTORY, PLOTS_DIRECTORY, PLOTS_SECTOR_DIRECTORY,
-                   VARSTATS_DIRECTORY, VARSTATS_SECTOR_DIRECTORY, QUERIES_DIRECTORY]
+                   VARSTATS_DIRECTORY, VARSTATS_SECTOR_DIRECTORY, QUERIES_DIRECTORY, RAW_LC_SPEC_DIRECTORY]
 
     # file extension
     FILE_EXT = ''

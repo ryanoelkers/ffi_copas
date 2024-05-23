@@ -1,14 +1,10 @@
 from config import Configuration
 import numpy as np
-from FITS_tools.hcongrid import hcongrid
-import astropy
-import astropy.stats
+import astroalign as aa
 from astropy.nddata.utils import Cutout2D
 from astropy.wcs import WCS
 from astropy.io import fits
-import scipy
-import scipy.ndimage
-from scipy.interpolate import Rbf
+from scipy.interpolate import griddata
 
 
 class Preprocessing:
@@ -28,141 +24,126 @@ class Preprocessing:
 
         # use the sampling space to make the appropriate size vectors
         lop = 2 * Configuration.PIX
-        sze = int((Configuration.BXS / Configuration.PIX) * (Configuration.BXS / Configuration.PIX) +
-                  2 * (Configuration.BXS / Configuration.PIX) + 1)  # size holder for later
 
-        # get the holders ready
-        res = np.zeros(shape=(Configuration.AXS, Configuration.AXS))  # background 'image'
-        bck = np.zeros(shape=(int((Configuration.AXS / Configuration.BXS) ** 2)))  # image background
-        sbk = np.zeros(shape=(int((Configuration.AXS / Configuration.BXS) ** 2)))  # sigma of the image background
+        # size holder for later
+        sze = int((Configuration.AXS / Configuration.PIX) * (Configuration.AXS / Configuration.PIX) +
+                  (Configuration.AXS / Configuration.PIX) + (Configuration.AXS / Configuration.PIX) + 1)
 
-        # begin breaking up the image into bxs x bxs sections and search for sky in pix x pix boxes
-        tts = 0  # step vector for the captured sky background statistics
-        for oo in range(0, Configuration.AXS, Configuration.BXS):
-            for ee in range(0, Configuration.AXS, Configuration.BXS):
-                img_section = img[ee:ee + Configuration.BXS, oo:oo + Configuration.BXS]  # split the image into subsect
+        # calculate the sky statistics
+        # sky_mean, sky_median, sky_sig = astropy.stats.sigma_clipped_stats(img, sigma=2.5)
+        sky_median = np.nanmedian(img)
+        sky_sig = np.nanstd(img)
 
-                # calculate the sky statistics
-                sky_mean, sky_median, sky_sig = astropy.stats.sigma_clipped_stats(img_section, sigma=2.5)
-                bck[tts] = sky_median  # insert the image median background
-                sbk[tts] = sky_sig  # insert the image sigma background
+        # create holder arrays for good and bad pixels
+        x = np.zeros(shape=sze)
+        y = np.zeros(shape=sze)
+        v = np.zeros(shape=sze)
+        s = np.zeros(shape=sze)
+        nd = int(0)
 
-                # create holder arrays for good and bad pixels
-                x = np.zeros(shape=sze)
-                y = np.zeros(shape=sze)
-                v = np.zeros(shape=sze)
-                s = np.zeros(shape=sze)
-                nd = int(0)
+        # begin the sampling of the "local" sky value
+        for jj in range(0, Configuration.AXS + Configuration.PIX, Configuration.PIX):
+            for kk in range(0, Configuration.AXS + Configuration.PIX, Configuration.PIX):
+                il = np.amax([jj - lop, 0])
+                ih = np.amin([jj + lop, Configuration.AXS - 1])
+                jl = np.amax([kk - lop, 0])
+                jh = np.amin([kk + lop, Configuration.AXS - 1])
+                c = img[jl:jh, il:ih]
 
-                # begin the sampling of the "local" sky value
-                for jj in range(0, Configuration.BXS + Configuration.PIX, Configuration.PIX):
-                    for kk in range(0, Configuration.BXS + Configuration.PIX, Configuration.PIX):
-                        il = np.amax([jj - lop, 0])
-                        ih = np.amin([jj + lop, Configuration.BXS - 1])
-                        jl = np.amax([kk - lop, 0])
-                        jh = np.amin([kk + lop, Configuration.BXS - 1])
-                        c = img_section[jl:jh, il:ih]
+                # select the median value with clipping
+                # lsky_mean, lsky, ssky = astropy.stats.sigma_clipped_stats(c, sigma=2.5)
+                lsky_mean = np.nanmean(c)
+                lsky = np.nanmedian(c)
+                ssky = np.nanstd(c)
+                x[nd] = np.amin([jj, Configuration.AXS - 1])  # determine the pixel to input
+                y[nd] = np.amin([kk, Configuration.AXS - 1])  # determine the pixel to input
+                v[nd] = lsky  # median sky
+                s[nd] = ssky  # sigma sky
+                nd = nd + 1
 
-                        # select the median value with clipping
-                        lsky_mean, lsky, ssky = astropy.stats.sigma_clipped_stats(c, sigma=2.5)
+        # now we want to remove any possible values which have bad sky values
+        rj = np.argwhere(v <= 0)  # stuff to remove
+        kp = np.argwhere(v > 0)  # stuff to keep
 
-                        x[nd] = np.amin([jj, Configuration.BXS - 1])  # determine the pixel to input
-                        y[nd] = np.amin([kk, Configuration.BXS - 1])  # determine the pixel to input
-                        v[nd] = lsky  # median sky
-                        s[nd] = ssky  # sigma sky
-                        nd = nd + 1
+        if len(rj) > 0:
 
-                # now we want to remove any possible values which have bad sky values
-                rj = np.argwhere(v <= 0)  # stuff to remove
-                kp = np.argwhere(v > 0)  # stuff to keep
+            # keep only the good points
+            xgood = x[kp]
+            ygood = y[kp]
+            vgood = v[kp]
 
-                if len(rj) > 0:
+            for jj in range(0, len(rj[0])):
+                # select the bad point
+                xbad = x[rj[jj]]
+                ybad = y[rj[jj]]
 
-                    # keep only the good points
-                    xgood = x[kp]
-                    ygood = y[kp]
-                    vgood = v[kp]
+                # use the distance formula to get the closest points
+                rd = np.sqrt((xgood - xbad) ** 2. + (ygood - ybad) ** 2.)
 
-                    for jj in range(0, len(rj[0])):
-                        # select the bad point
-                        xbad = x[rj[jj]]
-                        ybad = y[rj[jj]]
+                # sort the radii
+                pp = sorted(range(len(rd)), key=lambda k: rd[k])
 
-                        # use the distance formula to get the closest points
-                        rd = np.sqrt((xgood - xbad) ** 2. + (ygood - ybad) ** 2.)
+                # use the closest 10 points to get a median
+                vnear = vgood[pp[0:9]]
+                ave = np.median(vnear)
 
-                        # sort the radii
-                        pp = sorted(range(len(rd)), key=lambda k: rd[k])
+                # insert the good value into the array
+                v[rj[jj]] = ave
 
-                        # use the closest 10 points to get a median
-                        vnear = vgood[pp[0:9]]
-                        ave = np.median(vnear)
+        # now we want to remove any possible values which have bad sigmas
+        rj = np.argwhere(s >= 2 * sky_sig)
+        kp = np.argwhere(s < 2 * sky_sig)
 
-                        # insert the good value into the array
-                        v[rj[jj]] = ave
+        if len(rj) > 0:
+            # keep only the good points
+            xgood = np.array(x[kp])
+            ygood = np.array(y[kp])
+            vgood = np.array(v[kp])
 
-                # now we want to remove any possible values which have bad sigmas
-                rj = np.argwhere(s >= 2 * sky_sig)
-                kp = np.argwhere(s < 2 * sky_sig)
+            for jj in range(0, len(rj)):
+                # select the bad point
+                xbad = x[rj[jj]]
+                ybad = y[rj[jj]]
 
-                if len(rj) > 0:
-                    # keep only the good points
-                    xgood = np.array(x[kp])
-                    ygood = np.array(y[kp])
-                    vgood = np.array(v[kp])
+                # use the distance formula to get the closest points
+                rd = np.sqrt((xgood - xbad) ** 2. + (ygood - ybad) ** 2.)
 
-                    for jj in range(0, len(rj)):
-                        # select the bad point
-                        xbad = x[rj[jj]]
-                        ybad = y[rj[jj]]
+                # sort the radii
+                pp = sorted(range(len(rd)), key=lambda k: rd[k])
 
-                        # use the distance formula to get the closest points
-                        rd = np.sqrt((xgood - xbad) ** 2. + (ygood - ybad) ** 2.)
+                # use the closest 10 points to get a median
+                vnear = vgood[pp[0:9]]
+                ave = np.median(vnear)
+                if np.isfinite(ave) == 0:
+                    ave = np.median(v[np.isfinite(v)])
 
-                        # sort the radii
-                        pp = sorted(range(len(rd)), key=lambda k: rd[k])
+                # insert the good value into the array
+                v[rj[jj]] = ave
 
-                        # use the closest 10 points to get a median
-                        vnear = vgood[pp[0:9]]
-                        ave = np.median(vnear)
-                        if np.isfinite(ave) == 0:
-                            ave = np.median(v[np.isfinite(v)])
+        # set up a meshgrid to interpolate to
+        xi = np.linspace(0, Configuration.AXS - 1, Configuration.AXS)
+        yi = np.linspace(0, Configuration.AXS - 1, Configuration.AXS)
+        xx, yy = np.meshgrid(xi, yi)
 
-                        # insert the good value into the array
-                        v[rj[jj]] = ave
+        # remove any nan of inf values
+        if len(v[~np.isfinite(v)]) > 0:
+            v[~np.isfinite(v)] = np.median(v[np.isfinite(v)])
 
-                # set up a meshgrid to interpolate to
-                xi = np.linspace(0, Configuration.BXS - 1, Configuration.BXS)
-                yi = np.linspace(0, Configuration.BXS - 1, Configuration.BXS)
-                xx, yy = np.meshgrid(xi, yi)
-
-                # remove any nan of inf values
-                if len(v[~np.isfinite(v)]) > 0:
-                    v[~np.isfinite(v)] = np.median(v[np.isfinite(v)])
-
-                # now we interpolate to the rest of the image with a thin-plate spline
-                rbf = Rbf(x, y, v, function='thin-plate', smooth=0.0)
-                reshld = rbf(xx, yy)
-
-                # now add the values to the residual image
-                res[ee:ee + Configuration.BXS, oo:oo + Configuration.BXS] = reshld
-                tts = tts + 1
-
-        # smooth the residual image by the pix x pix box
-        sky_back = scipy.ndimage.filters.gaussian_filter(res, [Configuration.PIX, Configuration.PIX], mode='nearest')
+        # now we interpolate to the rest of the image with a cubic interpolation
+        res = griddata((x, y), v, (xx, yy), method='cubic')
 
         # subtract the sky gradient and add back the median background
-        img_sub = img - sky_back
-        fin_img = img_sub + np.median(bck)
+        img_sub = img - res
+        fin_img = img_sub + np.median(sky_median)
 
         # update the header
-        header['sky_medn'] = np.median(bck)
-        header['sky_sig'] = np.median(sbk)
+        header['sky_medn'] = np.median(sky_median)
+        header['sky_sig'] = np.median(sky_sig)
         header['sky_sub'] = 'yes'
 
         # if desired, write out the sky background to the working directory
         if sky_write == 'Y':
-            fits.writeto('sky_background.fits', sky_back, overwrite=True)
+            fits.writeto('sky_background.fits', res, overwrite=True)
 
         return fin_img, header
 
@@ -184,7 +165,8 @@ class Preprocessing:
         ref_header['NAXIS2'] = Configuration.AXS
 
         # align the image
-        align_img = hcongrid(img, header, ref_header)
+        # align_img = hcongrid(img, header, ref_header)
+        align_img, footprint = aa.register(img, ref)
 
         # update the header
         header['CTYPE1'] = ref_header['CTYPE1']

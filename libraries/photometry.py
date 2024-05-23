@@ -16,7 +16,7 @@ class Photometry:
 
     @staticmethod
     def single_frame_aper(img, master_list, header, stars_to_phot=-1, flux_only='N',
-                          bkg_sub='global', offset='N', diff_flux_convert='N', master_frame='N'):
+                          bkg_sub='global', offset='N', diff_flux_convert='N', master_frame='N', special_list='N'):
         """" This function will perform aperture photometry on a single frame.
 
         :parameter img - The image where photometry will be performed
@@ -29,6 +29,7 @@ class Photometry:
         :parameter offset - Y/N if you want to add an offset based on the master list flux values
         :parameter diff_flux_convert - Y/N if you want to convert the differenced flux to magnitude
         :parameter master_frame - Y/N if the image you are differencing is the master frame
+        :parameter special_list - Y/N if the images you have include a special list i.e. COPAS targets
 
         :return star_list - The star_list data frame is returned with the flux/mag values and errors included
         """
@@ -52,11 +53,12 @@ class Photometry:
 
         # convert to x, y
         x, y = w.all_world2pix(ra, dec, 0)
-        positions = (x, y)
 
         # add the x/y to the star data frame
         star_list['x'] = x
         star_list['y'] = y
+
+        positions = star_list[['x', 'y']].copy().reset_index(drop=True)  # positions = (x, y)
 
         # run aperture photometry
         # set up the star aperture and sky annuli
@@ -80,6 +82,48 @@ class Photometry:
         star_list['flux'] = np.array(phot_table['aperture_sum_0'] - bkg)
         star_list['flux_err'] = np.array(np.sqrt(np.abs(phot_table['aperture_sum_0'])))
 
+        if special_list == 'Y':
+            target_list = pd.read_csv(Configuration.DATA_DIRECTORY + Configuration.SPECIAL_LIST + "_stars\\" +
+                                      Configuration.SPECIAL_LIST + "_" + Configuration.SECTOR + ".csv", delimiter=',')
+
+            target_list = target_list[(target_list.camera == int(Configuration.CAMERA)) &
+                                      (target_list.ccd == int(Configuration.CCD))].copy().reset_index(drop=True)
+
+            spec_ra = target_list.ra.to_numpy()
+            spec_dec = target_list.dec.to_numpy()
+
+            # convert to x, y
+            spec_x, spec_y = w.all_world2pix(spec_ra, spec_dec, 0)
+
+            # add the x/y to the star data frame
+            target_list['x'] = spec_x
+            target_list['y'] = spec_y
+
+            spec_positions = target_list[['x', 'y']].copy().reset_index(drop=True)  # positions = (x, y)
+
+            # run aperture photometry
+            # set up the star aperture and sky annuli
+            aperture = CircularAperture(spec_positions, r=Configuration.APER_SIZE)
+            annulus_aperture = CircularAnnulus(spec_positions,
+                                               r_in=Configuration.ANNULI_INNER,
+                                               r_out=Configuration.ANNULI_OUTER)
+            apers = [aperture, annulus_aperture]
+
+            # run the photometry to get the data table
+            spec_phot_table = aperture_photometry(img, apers, method='exact')
+
+            # extract the sky background for each annuli
+            spec_sky = spec_phot_table['aperture_sum_1'].value / annulus_aperture.area
+            if bkg_sub == 'local':
+                spec_bkg = spec_sky * aperture.area
+            elif bkg_sub == 'global':
+                spec_bkg = np.median(img) * aperture.area
+            else:
+                spec_bkg = 0
+            # subtract the sky background to get the stellar flux and sqrt of total flux to get the photometric error
+            target_list['flux'] = np.array(spec_phot_table['aperture_sum_0'] - spec_bkg)
+            target_list['flux_err'] = np.array(np.sqrt(np.abs(spec_phot_table['aperture_sum_0'])))
+
         if diff_flux_convert == 'Y':
             # convert to magnitude
             star_list['mag'] = star_list.apply(lambda x: 25. - 2.5 * np.log10(x.flux + x.flux_master), axis=1)
@@ -95,13 +139,16 @@ class Photometry:
             # apply to the full data set
             star_list['clean'] = star_list.apply(lambda x: x.mag - off, axis=1)
 
+            if special_list == 'Y':
+                target_list['clean'] = target_list.apply(lambda x: x.flux * (1 + off), axis=1)
+
         if flux_only == 'N':
             # convert to magnitude
             star_list['mag'] = 25. - 2.5 * np.log10(star_list['flux'].to_numpy())
             star_list['mag_err'] = (2.5 / np.log(10.)) * (star_list['flux_err'].to_numpy() /
                                                           star_list['flux'].to_numpy())
 
-        return star_list
+        return star_list, target_list
 
     @staticmethod
     def read_in_lightcurves(directory, ticid):

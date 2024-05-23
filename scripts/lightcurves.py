@@ -45,6 +45,10 @@ class LightCurves:
             if os.path.exists(Configuration.DIFFERENCED_DIRECTORY + flx_file_nme) == 0:
                 # read in the image
                 img, header = fits.getdata(Configuration.DIFFERENCED_DIRECTORY + file, header=True)
+                master, mheader = fits.getdata(Configuration.MASTER_DIRECTORY +
+                                               Configuration.SECTOR + "_" +
+                                               Configuration.CAMERA + "_" +
+                                               Configuration.CCD + "_master.fits", header=True)
 
                 # get the JD for the image
                 jd1 = header['TSTART']
@@ -55,16 +59,25 @@ class LightCurves:
                           ' files left after this image.', 'info', Configuration.LOG_SCREEN)
 
                 # get photometry for those stars
-                star_phot = Photometry.single_frame_aper(img, star_list, header,
-                                                         stars_to_phot=Configuration.STAR_CHECK, bkg_sub='local',
-                                                         flux_only='Y', diff_flux_convert='Y', offset='Y')
+                star_phot, target_list = Photometry.single_frame_aper(img, star_list, mheader,
+                                                                      stars_to_phot=Configuration.STAR_CHECK,
+                                                                      bkg_sub='local',
+                                                                      flux_only='Y',
+                                                                      diff_flux_convert='Y',
+                                                                      offset='Y',
+                                                                      special_list='Y')
                 star_phot['JD'] = jd
+                target_list['JD'] = jd
 
                 # dump the star phot file to a flux file
                 star_phot[['TICID', 'ra', 'dec', 'x', 'y',
                            'JD', 'flux', 'flux_err', 'mag',
                            'mag_err', 'clean']].to_csv(Configuration.DIFFERENCED_DIRECTORY +
                                                        flx_file_nme, sep=" ", index=False)
+                # dump the star phot file to a flux file
+                target_list[['id', 'ra', 'dec', 'x', 'y', 'JD', 'flux', 'flux_err', 'clean']].\
+                    to_csv(Configuration.DIFFERENCED_DIRECTORY +
+                           file_prt[0] + '_' + Configuration.SPECIAL_LIST + '.flux', sep=" ", index=False)
 
         return
 
@@ -260,6 +273,14 @@ class LightCurves:
 
         :return nothing is returned, but each light curve is output
         """
+        if Configuration.SPECIAL_LIST != 'none':
+            spec_files = Utils.get_file_list(Configuration.DIFFERENCED_DIRECTORY, '-' + Configuration.SECT + '-' +
+                                        Configuration.CAMERA + '-' + Configuration.CCD + '-' +
+                                        Configuration.SECT_NUM + '-s_ffic_' + Configuration.FILE_EXT + 'd' +
+                                        '_' + Configuration.SPECIAL_LIST + '.flux')
+
+            # combine the flux from the flux files, and write the raw light curves
+            LightCurves.combine_special_list_files(Configuration.DIFFERENCED_DIRECTORY, spec_files)
 
         # get the file list of the differenced image flux information
         files = Utils.get_file_list(Configuration.DIFFERENCED_DIRECTORY, '-' + Configuration.SECT + '-' +
@@ -339,6 +360,61 @@ class LightCurves:
 
             # now write hte light curves
             LightCurves.write_light_curves(tics, date, mags, clns, errs)
+
+        return
+
+
+    @staticmethod
+    def combine_special_list_files(directory, files):
+        """ This function combines all of the flux files in a given directory into a single data frame.
+
+        :parameter directory - The directory where the files are located
+        :parameter files - A list of the files
+
+        :returns data_df - A large data frame with all of the stellar flux information
+        """
+
+        target_list = pd.read_csv(Configuration.DATA_DIRECTORY + Configuration.SPECIAL_LIST + "_stars\\" +
+                                  Configuration.SPECIAL_LIST + "_" + Configuration.SECTOR + ".csv", delimiter=',')
+
+        target_list = target_list[(target_list.camera == int(Configuration.CAMERA)) &
+                                  (target_list.ccd == int(Configuration.CCD))].copy().reset_index(drop=True)
+
+        nstars = len(target_list)
+
+        Utils.log("Now working to create the raw light curves for the Special List: " + Configuration.SPECIAL_LIST +
+                  " in Sector: " + Configuration.SECTOR +
+                  " Camera: " + Configuration.CAMERA + " CCD:" + Configuration.CCD + ".",
+                  "info", Configuration.LOG_SCREEN)
+
+        # make the holders for the light curves
+        date = np.zeros(len(files))
+        flxs = np.zeros((len(files), nstars))
+        clns = np.zeros((len(files), nstars))
+        errs = np.zeros((len(files), nstars))
+
+        for idy, file in enumerate(files):
+
+            # read in the flux file
+            flux_df = pd.read_csv(directory + file, sep=' ', header=0)
+
+            # set the date
+            date[idy] = flux_df['JD'].iloc[0]
+
+            # calculate the magnitudes
+            flxs[idy, :] = flux_df['flux'].to_numpy()
+
+            # calculate the clean magnitudes
+            clns[idy, :] = flux_df['clean'].to_numpy()
+
+            # calculate the errors
+            errs[idy, :] = flux_df['flux_err'].to_numpy()
+
+        # get the TICIDs for writing the light curves
+        tics = flux_df['id'].to_numpy()
+
+        # now write hte light curves
+        LightCurves.write_light_curves(tics, date, flxs, clns, errs)
 
         return
 

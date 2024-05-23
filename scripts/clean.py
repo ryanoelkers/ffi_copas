@@ -124,9 +124,7 @@ class Clean:
                 # this should not be hard coded...update for later
 
                 Utils.log("A background box of " + str(Configuration.PIX) + " x " + str(Configuration.PIX) +
-                          " will be used for background subtraction, with image subsections sized as " +
-                          str(Configuration.BXS) + " x " + str(Configuration.BXS) + ".",
-                          "info", Configuration.LOG_SCREEN)
+                          " will be used for background subtraction.", "info", Configuration.LOG_SCREEN)
 
                 big_img, header = Preprocessing.sky_subtract(big_img, header, 'N')
                 fn = time.time()

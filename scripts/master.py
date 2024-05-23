@@ -239,15 +239,20 @@ class Master:
             # get the center pixels of the master frame, and the maximum angular distance to the edge
             mx_dist, cen_ra, cen_de = Images.get_coords(mast_head)
 
-            # read in the appropriate sql file, then replace the necessary values
-            sql_cmd = DBaccess.get_starlist_query(Configuration.QUERIES_DIRECTORY + 'star_list.sql',
-                                                  cen_ra, cen_de, mx_dist)
+            if Configuration.MACHINE == 'tessdev':
+                # read in the appropriate sql file, then replace the necessary values
+                sql_cmd = DBaccess.get_starlist_query(Configuration.QUERIES_DIRECTORY + 'star_list.sql',
+                                                      cen_ra, cen_de, mx_dist)
 
-            # now query the TIC at this given distance and center coordinate position
-            tic_list = DBaccess.query_tic7(sql_cmd, Configuration.MASTER_DIRECTORY,
-                                           Configuration.SECTOR + "_" + Configuration.CAMERA + "_" +
-                                           Configuration.CCD + "_ticv7_list.csv", Configuration.MACHINE)
-
+                # now query the TIC at this given distance and center coordinate position
+                tic_list = DBaccess.query_tic7(sql_cmd, Configuration.MASTER_DIRECTORY,
+                                               Configuration.SECTOR + "_" + Configuration.CAMERA + "_" +
+                                               Configuration.CCD + "_ticv7_list.csv", Configuration.MACHINE)
+            else:
+                tic_list = DBaccess.query_mast(cen_ra, cen_de, mx_dist,
+                                               Configuration.MASTER_DIRECTORY,
+                                               Configuration.SECTOR + "_" + Configuration.CAMERA + "_" +
+                                               Configuration.CCD + "_ticv7_list.csv")
             Utils.log("Running photometry on master frame.", "info", 'Y')
 
             # now we run photometry on the master frame
