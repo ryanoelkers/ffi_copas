@@ -137,32 +137,32 @@ class Master:
                     # sometimes the quality flag does not catch the issue
                     try:
                         # add the data to a data frame which will be returned for analysis
-                        img_chk = img_chk.append(pd.DataFrame(
+                        img_chk = pd.concat([img_chk, pd.DataFrame(
                             data={'file': [file],
                                   'JD': [np.mean([fits.getheader(Configuration.RAW_DIRECTORY + file, 1)['TSTART'],
                                                  fits.getheader(Configuration.RAW_DIRECTORY + file, 1)['TSTOP']])],
                                   'ra': [fits.getheader(Configuration.RAW_DIRECTORY + file, 1)['CRVAL1']],
                                   'dec': [fits.getheader(Configuration.RAW_DIRECTORY + file, 1)['CRVAL2']],
-                                  'pass': [fits.getheader(Configuration.RAW_DIRECTORY + file, 1)['DQUALITY']]})
+                                  'pass': [fits.getheader(Configuration.RAW_DIRECTORY + file, 1)['DQUALITY']]})]
                         ).reset_index(drop=True)
                     except KeyError:
-                        img_chk = img_chk.append(pd.DataFrame(
+                        img_chk = pd.concat([img_chk, pd.DataFrame(
                             data={'file': [file],
                                   'JD': [np.mean([fits.getheader(Configuration.RAW_DIRECTORY + file, 1)['TSTART'],
                                                   fits.getheader(Configuration.RAW_DIRECTORY + file, 1)['TSTOP']])],
                                   'ra': -99,
                                   'dec': -99,
-                                  'pass': 99})
+                                  'pass': 99})]
                         ).reset_index(drop=True)
                 else:
                     # add the data to a data frame which will be returned for analysis
-                    img_chk = img_chk.append(pd.DataFrame(
+                    img_chk = pd.concat([img_chk, pd.DataFrame(
                         data={'file': [file],
                               'JD': [np.mean([fits.getheader(Configuration.RAW_DIRECTORY + file, 1)['TSTART'],
                                              fits.getheader(Configuration.RAW_DIRECTORY + file, 1)['TSTOP']])],
                               'ra': -99,
                               'dec': -99,
-                              'pass': [fits.getheader(Configuration.RAW_DIRECTORY + file, 1)['DQUALITY']]})
+                              'pass': [fits.getheader(Configuration.RAW_DIRECTORY + file, 1)['DQUALITY']]})]
                     ).reset_index(drop=True)
 
             # dump the file to make a legacy file for later
@@ -192,7 +192,8 @@ class Master:
                 (os.path.isfile(Configuration.MASTER_DIRECTORY + Configuration.SECTOR + "_" +
                                 Configuration.CAMERA + '_' + Configuration.CCD + '_master.fits') == 1):
 
-            Utils.log("Legacy master frame information found, pulling legacy master frame information.", "info", 'Y')
+            Utils.log("Legacy master frame information found, pulling legacy master frame information.",
+                      "info", 'Y')
 
             # read in the legacy data
             master_df = pd.read_csv(Configuration.MASTER_DIRECTORY + Configuration.SECTOR + "_" +
@@ -256,7 +257,10 @@ class Master:
             Utils.log("Running photometry on master frame.", "info", 'Y')
 
             # now we run photometry on the master frame
-            phot_df = Photometry.single_frame_aper(master, tic_list, mast_head, master_frame='Y')
+            phot_df = Photometry.single_frame_aper(master,
+                                                   tic_list,
+                                                   mast_head,
+                                                   master_frame='Y')
 
             # remove the unseen stars
             phot_df = phot_df.dropna()

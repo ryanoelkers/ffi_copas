@@ -83,7 +83,7 @@ class Photometry:
         star_list['flux_err'] = np.array(np.sqrt(np.abs(phot_table['aperture_sum_0'])))
 
         if special_list == 'Y':
-            target_list = pd.read_csv(Configuration.DATA_DIRECTORY + Configuration.SPECIAL_LIST + "_stars\\" +
+            target_list = pd.read_csv(Configuration.MASTER_DIRECTORY + Configuration.SPECIAL_LIST_NAME + "_stars\\" +
                                       Configuration.SPECIAL_LIST + "_" + Configuration.SECTOR + ".csv", delimiter=',')
 
             target_list = target_list[(target_list.camera == int(Configuration.CAMERA)) &
@@ -148,7 +148,10 @@ class Photometry:
             star_list['mag_err'] = (2.5 / np.log(10.)) * (star_list['flux_err'].to_numpy() /
                                                           star_list['flux'].to_numpy())
 
-        return star_list, target_list
+        if special_list == 'Y':
+            return star_list, target_list
+        else:
+            return star_list
 
     @staticmethod
     def read_in_lightcurves(directory, ticid):

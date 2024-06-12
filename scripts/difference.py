@@ -131,7 +131,8 @@ class BigDiff:
         # compile the oisdifference.c code
         os.system('cp oisdifference.c ' + Configuration.CODE_DIFFERENCE_DIRECTORY)
         os.chdir(Configuration.CODE_DIFFERENCE_DIRECTORY)
-        os.system('gcc oisdifference.c -L/home/oelkerrj/local/lib -I/home/oelkerrj/local/include -lcfitsio -lm -lcurl')
+        os.system('gcc oisdifference.c -L/home/oelkerrj/src/cfitsio-4.4.0 '
+                  '-I/home/oelkerrj/src/cfitsio-4.4.0 -lcfitsio -lm')
         os.chdir(Configuration.WORKING_DIRECTORY)
 
         # prepare the master frame

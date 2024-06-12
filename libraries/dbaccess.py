@@ -4,9 +4,13 @@ from config import Configuration
 from libraries.utils import Utils
 import psycopg2
 import pandas as pd
-import os
 from astroquery.mast import Catalogs
 from astropy.coordinates import SkyCoord
+import sys
+import os
+import json
+import requests
+from urllib.parse import quote as urlencode
 
 
 class DBaccess:
@@ -153,6 +157,46 @@ class DBaccess:
         return df
 
     @staticmethod
+    def mast_query(request):
+        """Perform a MAST query. Lifted from: https://mast.stsci.edu/api/v0/pyex.html#MastCatalogsFilteredTicPy
+
+            Parameters
+            ----------
+            request (dictionary): The MAST request json object
+
+            Returns head,content where head is the response HTTP headers, and content is the returned data"""
+
+        # Base API url
+        request_url = 'https://mast.stsci.edu/api/v0/invoke'
+
+        # Grab Python Version
+        version = ".".join(map(str, sys.version_info[:3]))
+
+        # Create Http Header Variables
+        headers = {"Content-type": "application/x-www-form-urlencoded",
+                   "Accept": "text/plain",
+                   "User-agent": "python-requests/" + version}
+
+        # Encoding the request as a json string
+        req_string = json.dumps(request)
+        req_string = urlencode(req_string)
+
+        # Perform the HTTP request
+        resp = requests.post(request_url, data="request=" + req_string, headers=headers)
+
+        # Pull out the headers and response content
+        head = resp.headers
+        content = resp.content.decode('utf-8')
+
+        return head, content
+
+    @staticmethod
+    def set_filters(parameters):
+        """ Filtering function lifted from MAST website:
+        https://mast.stsci.edu/api/v0/pyex.html#MastCatalogsFilteredTicPy """
+        return [{"paramName": p, "values": v} for p, v in parameters.items()]
+
+    @staticmethod
     def query_mast(cen_ra, cen_dec, region_size, out_path, file_name):
         """ This function will query the tic on mast instaed of the local tessdev databsae
 
@@ -177,14 +221,26 @@ class DBaccess:
             # convert the coordinates to degrees
             ccd_region = SkyCoord(cen_ra, cen_dec, unit=('deg', 'deg'))
 
-            # astroquery the region of the ccd / camera
-            df = Catalogs.query_region(ccd_region, radius=region_size, catalog='Tic')[
-                'ID', 'Tmag', 'ra', 'dec', 'dstArcSec', 'TWOMASS'].to_pandas()# .dropna(subset='[TWOMASS]')
+            # use the mast query functions to get the stars in 2MASS
+            filts = DBaccess.set_filters({
+                "typeSrc": ["tmgaia2"]
+            })
 
+            request = {"service": "Mast.Catalogs.Filtered.Tic.Position.Rows",
+                       "format": "json",
+                       "params": {
+                           "columns": "ID,Tmag,ra,dec",
+                           "filters": filts,
+                           "ra": cen_ra,
+                           "dec": cen_dec,
+                           "radius": region_size
+                       }}
+
+            headers, out_string = DBaccess.mast_query(request)
+            out_data = json.loads(out_string)
+            df = pd.json_normalize(out_data['data'])
             df = df.rename(columns={'ID': 'TICID'})
-            df = df.rename(columns={'dstArcSec': 'rdist'})
             df = df.rename(columns={'Tmag': 'tessmag'})
-            df = df.drop(columns='TWOMASS')
 
             Utils.log("Query complete, dumping to .csv file " + out_path + file_name, "info", Configuration.LOG_SCREEN)
 
