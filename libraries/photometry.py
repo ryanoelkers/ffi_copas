@@ -83,8 +83,8 @@ class Photometry:
         star_list['flux_err'] = np.array(np.sqrt(np.abs(phot_table['aperture_sum_0'])))
 
         if special_list == 'Y':
-            target_list = pd.read_csv(Configuration.MASTER_DIRECTORY + Configuration.SPECIAL_LIST_NAME + "_stars\\" +
-                                      Configuration.SPECIAL_LIST + "_" + Configuration.SECTOR + ".csv", delimiter=',')
+            target_list = pd.read_csv(Configuration.MASTER_DIRECTORY +
+                                      Configuration.SPECIAL_LIST_NAME + "_" + Configuration.SECTOR + ".csv", delimiter=',')
 
             target_list = target_list[(target_list.camera == int(Configuration.CAMERA)) &
                                       (target_list.ccd == int(Configuration.CCD))].copy().reset_index(drop=True)

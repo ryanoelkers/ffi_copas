@@ -34,10 +34,11 @@ class Configuration:
 
     # which reduction step would you like to start at?
     CLEAN_SKIP = 'Y'
-    MASTER_SKIP = 'N'
-    DIFFERENCE_SKIP = 'N'
+    MASTER_SKIP = 'Y'
+    DIFFERENCE_SKIP = 'Y'
     PHOTOMETRY_SKIP = 'Y'
-    MAKE_RAW_LIGHTCURVE_SKIP = 'Y'
+    MAKE_DETECTION_FRAME_SKIP = 'Y'
+    MAKE_RAW_LIGHTCURVE_SKIP = 'N'
     MAKE_DETREND_LIGHTCURVE_SKIP = 'Y'
     MAKE_FILTERGRAPH_PORTAL_SKIP = 'Y'
     MAST_RELEASE_SKIP = 'Y'
@@ -81,6 +82,9 @@ class Configuration:
     RMS_LOW_LIMIT = 0.005  # the lower limit on precision to use for the kernel stars
     RMS_UP_LIMIT = 0.02  # the upper limit on precision to use for the kernel stars
 
+    # update the detection frame timescale
+    BIN_SCALE = 1  # how would you like to bin the images in days?
+
     # output paths for logging, temporary files, figures etc
     WORKING_DIRECTORY = '/home/oelkerrj/PycharmProjects/ffi_copas/'
     DATA_DIRECTORY = '/media/oelkerrj/DATA/copas/'
@@ -98,7 +102,8 @@ class Configuration:
     MASTER_DIRECTORY = DATA_DIRECTORY + SECTOR + '/master/'
     LC_DIRECTORY = DATA_DIRECTORY + SECTOR + '/lc/'
     RAW_LC_DIRECTORY = LC_DIRECTORY + 'raw/'
-    RAW_LC_SPEC_DIRECTORY = RAW_LC_DIRECTORY + SPECIAL_LIST + '/'
+    RAW_LC_DIRECTORY_FULL = RAW_LC_DIRECTORY + 'full/'
+    RAW_LC_SPEC_DIRECTORY = RAW_LC_DIRECTORY + SPECIAL_LIST_NAME + '/'
     DETREND_LC_DIRECTORY = LC_DIRECTORY + 'detrend/'
     RELEASE_DIRECTORY = DATA_DIRECTORY + 'release/'
     RELEASE_SECTOR_DIRECTORY = RELEASE_DIRECTORY + SECTOR + '/'
@@ -108,6 +113,7 @@ class Configuration:
     PLOTS_SECTOR_DIRECTORY = PLOTS_DIRECTORY + SECTOR + '/'
     VARSTATS_DIRECTORY = DATA_DIRECTORY + 'varstats/'
     VARSTATS_SECTOR_DIRECTORY = VARSTATS_DIRECTORY + SECTOR + '/'
+    DETECTION_FRAME_DIRECTORY = DATA_DIRECTORY + SECTOR + '/detection/'
 
     # directories for coding
     CODE_DIFFERENCE_INIT_DIRECTORY = DATA_DIRECTORY + 'difference/'
@@ -121,7 +127,8 @@ class Configuration:
                    DETREND_LC_DIRECTORY, MASTER_DIRECTORY, CALIBRATION_DIRECTORY, CODE_DIFFERENCE_INIT_DIRECTORY,
                    CODE_DIFFERENCE_INIT_SECT_DIRECTORY, CODE_DIFFERENCE_CAM_DIRECTORY, CODE_DIFFERENCE_DIRECTORY,
                    RELEASE_DIRECTORY, RELEASE_SECTOR_DIRECTORY, PLOTS_DIRECTORY, PLOTS_SECTOR_DIRECTORY,
-                   VARSTATS_DIRECTORY, VARSTATS_SECTOR_DIRECTORY, QUERIES_DIRECTORY, RAW_LC_SPEC_DIRECTORY]
+                   VARSTATS_DIRECTORY, VARSTATS_SECTOR_DIRECTORY, QUERIES_DIRECTORY, RAW_LC_SPEC_DIRECTORY,
+                   DETECTION_FRAME_DIRECTORY, RAW_LC_DIRECTORY_FULL]
 
     # file extension
     FILE_EXT = ''

@@ -4,6 +4,7 @@ from scripts.difference import BigDiff
 from scripts.lightcurves import LightCurves
 from scripts.filtergraph import Filtergraph
 from scripts.mast_release import MastRelease
+from scripts.detection import Detection
 from libraries.utils import Utils
 from config import Configuration
 import pandas as pd
@@ -42,6 +43,12 @@ if Configuration.PHOTOMETRY_SKIP == 'N':
     LightCurves.diff_img_phot(star_list)
 else:
     Utils.log("Skipping photometry of differenced images.", "info", Configuration.LOG_SCREEN)
+
+if Configuration.MAKE_DETECTION_FRAME_SKIP == 'N':
+    # make the detection frames for the given sector, camera, ccd
+    Detection.make_detection_frames(Configuration.BIN_SCALE)
+else:
+    Utils.log("Skipping making detection frames.", "info", Configuration.LOG_SCREEN)
 
 if Configuration.MAKE_RAW_LIGHTCURVE_SKIP == 'N':
     # create the raw light curves from the flux files

@@ -77,7 +77,7 @@ class LightCurves:
                 # dump the star phot file to a flux file
                 target_list[['id', 'ra', 'dec', 'x', 'y', 'JD', 'flux', 'flux_err', 'clean']].\
                     to_csv(Configuration.DIFFERENCED_DIRECTORY +
-                           file_prt[0] + '_' + Configuration.SPECIAL_LIST + '.flux', sep=" ", index=False)
+                           file_prt[0] + '_' + Configuration.SPECIAL_LIST_NAME + '.flux', sep=" ", index=False)
 
         return
 
@@ -275,9 +275,9 @@ class LightCurves:
         """
         if Configuration.SPECIAL_LIST != 'none':
             spec_files = Utils.get_file_list(Configuration.DIFFERENCED_DIRECTORY, '-' + Configuration.SECT + '-' +
-                                        Configuration.CAMERA + '-' + Configuration.CCD + '-' +
-                                        Configuration.SECT_NUM + '-s_ffic_' + Configuration.FILE_EXT + 'd' +
-                                        '_' + Configuration.SPECIAL_LIST + '.flux')
+                                             Configuration.CAMERA + '-' + Configuration.CCD + '-' +
+                                             Configuration.SECT_NUM + '-s_ffic_' + Configuration.FILE_EXT + 'd' +
+                                             '_' + Configuration.SPECIAL_LIST_NAME + '.flux')
 
             # combine the flux from the flux files, and write the raw light curves
             LightCurves.combine_special_list_files(Configuration.DIFFERENCED_DIRECTORY, spec_files)
@@ -359,7 +359,7 @@ class LightCurves:
             tics = full_df.TICID.to_numpy()
 
             # now write hte light curves
-            LightCurves.write_light_curves(tics, date, mags, clns, errs)
+            LightCurves.write_light_curves(tics, date, mags, clns, errs, 'full')
 
         return
 
@@ -374,16 +374,16 @@ class LightCurves:
         :returns data_df - A large data frame with all of the stellar flux information
         """
 
-        target_list = pd.read_csv(Configuration.DATA_DIRECTORY + Configuration.SPECIAL_LIST + "_stars\\" +
-                                  Configuration.SPECIAL_LIST + "_" + Configuration.SECTOR + ".csv", delimiter=',')
+        target_list = pd.read_csv(Configuration.MASTER_DIRECTORY +
+                                  Configuration.SPECIAL_LIST_NAME + "_" + Configuration.SECTOR + ".csv", delimiter=',')
 
         target_list = target_list[(target_list.camera == int(Configuration.CAMERA)) &
                                   (target_list.ccd == int(Configuration.CCD))].copy().reset_index(drop=True)
 
         nstars = len(target_list)
 
-        Utils.log("Now working to create the raw light curves for the Special List: " + Configuration.SPECIAL_LIST +
-                  " in Sector: " + Configuration.SECTOR +
+        Utils.log("Now working to create the raw light curves for the Special List: " +
+                  Configuration.SPECIAL_LIST_NAME + " in Sector: " + Configuration.SECTOR +
                   " Camera: " + Configuration.CAMERA + " CCD:" + Configuration.CCD + ".",
                   "info", Configuration.LOG_SCREEN)
 
@@ -414,12 +414,12 @@ class LightCurves:
         tics = flux_df['id'].to_numpy()
 
         # now write hte light curves
-        LightCurves.write_light_curves(tics, date, flxs, clns, errs)
+        LightCurves.write_light_curves(tics, date, flxs, clns, errs, Configuration.SPECIAL_LIST_NAME)
 
         return
 
     @staticmethod
-    def write_light_curves(tics, date, mags, clns, errs):
+    def write_light_curves(tics, date, mags, clns, errs, list):
         """ This function will write the times, magnitudes and errors to files.
 
         :parameter tics - The TICIDs for the current set of stars
@@ -427,12 +427,13 @@ class LightCurves:
         :parameter mags - The magnitudes for the light curves
         :parameter clns - The cleaned magnitude for the light curve
         :parameter errs - The errors in the light curves.
+        :parameter list - The special list directory to write to, or just regular old 'full'
 
         :return - Nothing is returned, but the light curve files are written
         """
 
         # initialize the light curve data frame
-        lc = pd.DataFrame(columns={'JD', 'clean', 'mag', 'err'})
+        lc = pd.DataFrame(columns=['JD', 'clean', 'mag', 'err'])
 
         for idx, ticid in enumerate(tics):
 
@@ -449,13 +450,20 @@ class LightCurves:
             lc['err'] = np.around(errs[:, idx], decimals=6)
 
             # write the data to a text file
-            if os.path.exists(Configuration.RAW_LC_DIRECTORY + str(ticid) + "_" + str(Configuration.SECTOR) + "_" +
-                              str(Configuration.CAMERA) + "_" + str(Configuration.CCD) + ".lc"):
-                os.system('rm -f ' + Configuration.RAW_LC_DIRECTORY + str(ticid) + "_" + str(Configuration.SECTOR) +
-                          "_" + str(Configuration.CAMERA) + "_" + str(Configuration.CCD) + ".lc")
+            if os.path.exists(Configuration.RAW_LC_DIRECTORY + '/' +
+                              str(ticid) + "_" +
+                              str(Configuration.SECTOR) + "_" +
+                              str(Configuration.CAMERA) + "_" +
+                              str(Configuration.CCD) + ".lc"):
+                os.system('rm -f ' + Configuration.RAW_LC_DIRECTORY + list + '/' +
+                          str(ticid) + "_" +
+                          str(Configuration.SECTOR) + "_" +
+                          str(Configuration.CAMERA) + "_" +
+                          str(Configuration.CCD) + ".lc")
 
             # write the new file
-            lc[['JD', 'clean', 'mag', 'err']].to_csv(Configuration.RAW_LC_DIRECTORY + str(ticid) + "_" +
+            lc[['JD', 'clean', 'mag', 'err']].to_csv(Configuration.RAW_LC_DIRECTORY + list + '/' +
+                                                     str(ticid) + "_" +
                                                      str(Configuration.SECTOR) + "_" +
                                                      str(Configuration.CAMERA) + "_" +
                                                      str(Configuration.CCD) + ".lc",
